@@ -1,18 +1,18 @@
 audit_version: 2
 rules:
-  - id: heartbeat_and_window
+  - id: heartbeat_window_horizons
     target: "src/**/runner*.py"
     check: "heartbeat_seconds==1 && window_steps==240 && horizons==[10,30,60,90,120,240]"
     severity: error
-  - id: parquet_rotation_and_split
+  - id: rotation_and_object_split
     target: "src/**/{collector,merger}*.py"
     check: "file_rotation_minutes==90 && object_columns_split==true"
     severity: error
-  - id: model_class_is_bayesian_lstm
+  - id: model_is_bayesian_lstm
     target: "src/**/model*.py"
     check: "class_type in [BayesianLSTM, MCDropoutLSTM]"
     severity: error
-  - id: kelly_integral_entropy_adaptive
+  - id: kelly_requirements
     target: "src/**/kelly*.py"
     check: "uses_gaussian_integral==true && costs_bps>=20 && available_capital_validated==true"
     severity: error

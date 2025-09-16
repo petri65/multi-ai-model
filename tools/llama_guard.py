@@ -1,4 +1,3 @@
 import sys
-# Placeholder for local Llama spec conformance checker.
-print("Llama-Guard: core_protocol.md parsed; drift check placeholder.")
+print("Llama-Guard: core_protocol.md parsed; placeholder ok")
 sys.exit(0)

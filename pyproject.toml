@@ -20,5 +20,5 @@ dependencies = [
 ]
 
 [project.scripts]
-multiai = "multiai.cli:run"
+multiai = "multiai.cli.main:main"
 multiai = "multiai.cli.main:main"

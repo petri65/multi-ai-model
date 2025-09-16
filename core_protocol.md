@@ -1,7 +1,16 @@
-# Core Protocol (excerpts, v0)
-Absolute requirements: modularity cap ≤ 600 LoC/module; real data only; UTC ms timestamps; only Bayesian LSTM (MC Dropout/variational); GPU for training/inference. 
-System timing: heartbeat 1s; window 240; horizons [10,30,60,90,120,240]; raw 200ms aligned to 1s by round-up and keep-latest in bucket.
-Merging: one row per second; list/object columns split before model input; schema validated for orderbook L1–L10, spreads, mid-prices, whales, mempool stats.
-Predictions & Kelly: prediction_10s … prediction_240s on each row; distributional Kelly with ≥20 bps costs and available-capital validation.
+# Core Protocol
 
-Pre-Commit Audit Checklist (machine rules live in policies/rules.yml and must pass). 
+```yaml
+system_heartbeat_seconds: 1
+horizons_seconds: [10, 30, 60, 90, 120, 240]
+rotation_minutes: 90
+object_columns_split: true
+merge_requires_no_nans: true
+timestamp_rounding: forward_ceiling_to_second
+timestamp_strictly_increasing: true
+single_timestamp_column_name: timestamp
+model_type_allowed: BayesianLSTM
+kelly_min_costs_bps: 20
+```
+
+The system must snap timestamps forward to the next full second, keep the latest record per second, split list-like object columns into 9 scalar columns, and merge on/off-chain to a single strictly-causal, 1s cadence dataset without empty cells. Predictions must expose 6 horizons and Kelly sizing must be distributional with costs >= 20 bps and available-capital validation.

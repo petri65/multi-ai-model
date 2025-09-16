@@ -11,24 +11,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
-      - run: pip install -r requirements.txt || true
-      - run: python -m tools.llama_guard --policy core_protocol.md --diff-only
+      - run: python tools/llama_guard.py
   Protocol-Auditor:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
-      - run: pip install -r requirements.txt || true
-      - run: python -m tools.protocol_auditor --policy core_protocol.md --rules policies/rules.yml --diff-only
+      - run: python tools/protocol_auditor.py
   GPT-Math-Validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
-      - run: pip install -r requirements.txt || true
-      - run: echo "No math-triggered files in v0"
+      - run: python tools/gpt_math_validate.py
   Test-Suite:
     runs-on: ubuntu-latest
     steps:

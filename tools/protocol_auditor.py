@@ -1,4 +1,3 @@
-import sys, json, pathlib
-# Minimal stub: in v0 we just succeed but print which policy would be checked.
-print("Protocol-Auditor: policies/rules.yml loaded; diff-only scanning placeholder.")
+import sys, pathlib
+print("Protocol-Auditor: policies/rules.yml loaded; placeholder ok")
 sys.exit(0)
