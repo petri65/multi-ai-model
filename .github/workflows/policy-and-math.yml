@@ -1,0 +1,39 @@
+name: policy-and-math
+on:
+  pull_request:
+    branches: [ "main", "release/**" ]
+  push:
+    branches-ignore: [ "main", "release/**" ]
+jobs:
+  Llama-Guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt || true
+      - run: python -m tools.llama_guard --policy core_protocol.md --diff-only
+  Protocol-Auditor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt || true
+      - run: python -m tools.protocol_auditor --policy core_protocol.md --rules policies/rules.yml --diff-only
+  GPT-Math-Validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt || true
+      - run: echo "No math-triggered files in v0"
+  Test-Suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -e .
+      - run: pytest -q

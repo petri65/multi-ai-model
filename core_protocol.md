@@ -1,18 +1,7 @@
-# Core Protocol
+# Core Protocol (excerpts, v0)
+Absolute requirements: modularity cap ≤ 600 LoC/module; real data only; UTC ms timestamps; only Bayesian LSTM (MC Dropout/variational); GPU for training/inference. 
+System timing: heartbeat 1s; window 240; horizons [10,30,60,90,120,240]; raw 200ms aligned to 1s by round-up and keep-latest in bucket.
+Merging: one row per second; list/object columns split before model input; schema validated for orderbook L1–L10, spreads, mid-prices, whales, mempool stats.
+Predictions & Kelly: prediction_10s … prediction_240s on each row; distributional Kelly with ≥20 bps costs and available-capital validation.
 
-This file encodes the non-negotiable rules the system must obey.
-
-```yaml
-system_heartbeat_seconds: 1
-horizons_seconds: [10, 30, 60, 90, 120, 240]
-rotation_minutes: 90
-object_columns_split: true
-merge_requires_no_nans: true
-timestamp_rounding: forward_ceiling_to_second
-timestamp_strictly_increasing: true
-single_timestamp_column_name: timestamp
-```
-
-- Timestamps must be snapped **forward** to the next full second and deduped keeping the **latest** original row within each second.
-- After split, no list-like object columns may remain.
-- On/Off-chain must merge to a single file with **no empty cells** and a **single** `timestamp` column.
+Pre-Commit Audit Checklist (machine rules live in policies/rules.yml and must pass). 
