@@ -107,18 +107,127 @@ def handle_build_features(payload):
     st.set_artifact("with_features", out_path)
     return res
 
+def _coerce_bool(val, default=False):
+    if val is None:
+        return default
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        return val.strip().lower() in {"1","true","yes","y","on"}
+    return bool(val)
+
 def handle_train_bayes_lstm(payload):
-    out_model = payload.get("model_out")
-    res = _call_flexible("multiai.pipeline.train_bayes_lstm", "run", payload, extra_candidates=["train","fit"])
-    if out_model:
-        st.set_artifact("model_path", out_model)
+    state = st.load()
+    features_path = payload.get("features_path") or state.get("train_path")
+    if not _exists(features_path):
+        raise FileNotFoundError(f"training features not found: {features_path}")
+    targets_path = payload.get("targets_path") or state.get("with_targets")
+    if not _exists(targets_path):
+        raise FileNotFoundError(f"targets parquet not found: {targets_path}")
+
+    requested_out = payload.get("outdir") or payload.get("model_dir") or payload.get("model_out")
+    if requested_out and requested_out.endswith(".pt"):
+        outdir = os.path.dirname(requested_out) or "."
+    else:
+        outdir = requested_out
+    if not outdir:
+        outdir = os.path.join("outputs", "bayesian_lstm_model")
+
+    defaults = {
+        "seq_len": 60,
+        "epochs": 3,
+        "batch_size": 128,
+        "lr": 1e-3,
+        "device": "cpu",
+        "verbose": False,
+    }
+
+    payload2 = {
+        "features_path": features_path,
+        "targets_path": targets_path,
+        "outdir": outdir,
+        "seq_len": int(payload.get("seq_len", defaults["seq_len"])),
+        "epochs": int(payload.get("epochs", defaults["epochs"])),
+        "batch_size": int(payload.get("batch_size", defaults["batch_size"])),
+        "lr": float(payload.get("lr", defaults["lr"])),
+        "device": payload.get("device", defaults["device"]),
+        "verbose": _coerce_bool(payload.get("verbose"), defaults["verbose"]),
+    }
+
+    res = _call_flexible(
+        "multiai.pipeline.train_bayes_lstm",
+        "run",
+        payload2,
+        extra_candidates=["train", "fit", "run_train_bayes"],
+    )
+
+    st.set_artifact("model_dir", outdir)
+    st.set_artifact("model_path", os.path.join(outdir, "model.pt"))
     return res
 
 def handle_predict_bayes_lstm(payload):
-    out_pred = payload.get("pred_out")
-    res = _call_flexible("multiai.pipeline.predict_bayes_lstm", "run", payload, extra_candidates=["predict","apply"])
-    if out_pred:
-        st.set_artifact("pred_path", out_pred)
+    state = st.load()
+    features_path = payload.get("features_path") or state.get("test_path")
+    if not _exists(features_path):
+        raise FileNotFoundError(f"prediction features not found: {features_path}")
+
+    model_dir = payload.get("model_dir") or state.get("model_dir")
+    if not model_dir:
+        model_path = payload.get("model_path") or state.get("model_path")
+        if model_path:
+            model_dir = os.path.dirname(model_path)
+    if not _exists(model_dir):
+        raise FileNotFoundError(f"model directory not found: {model_dir}")
+
+    out_path = payload.get("out_path") or payload.get("pred_out")
+    if not out_path:
+        out_path = os.path.join("outputs", "predictions.parquet")
+
+    seq_default = 60
+    meta_path = os.path.join(model_dir, "meta.json") if model_dir else None
+    if meta_path and os.path.exists(meta_path):
+        try:
+            meta = json.load(open(meta_path, "r", encoding="utf-8"))
+            seq_default = int(meta.get("seq_len", seq_default))
+        except Exception:
+            pass
+
+    defaults = {
+        "seq_len": seq_default,
+        "mc_samples": 32,
+        "device": "cpu",
+        "cost_bps_per_leg": 20.0,
+        "sl": 0.002,
+        "tp": 0.004,
+        "verbose": False,
+        "kelly_cap": 0.2,
+        "sigma_scale": 1.0,
+        "combine": False,
+    }
+
+    payload2 = {
+        "features_path": features_path,
+        "model_dir": model_dir,
+        "out_path": out_path,
+        "seq_len": int(payload.get("seq_len", defaults["seq_len"])),
+        "mc_samples": int(payload.get("mc_samples", defaults["mc_samples"])),
+        "device": payload.get("device", defaults["device"]),
+        "cost_bps_per_leg": float(payload.get("cost_bps_per_leg", defaults["cost_bps_per_leg"])),
+        "sl": float(payload.get("sl", defaults["sl"])),
+        "tp": float(payload.get("tp", defaults["tp"])),
+        "verbose": _coerce_bool(payload.get("verbose"), defaults["verbose"]),
+        "kelly_cap": float(payload.get("kelly_cap", defaults["kelly_cap"])),
+        "sigma_scale": float(payload.get("sigma_scale", defaults["sigma_scale"])),
+        "combine": _coerce_bool(payload.get("combine"), defaults["combine"]),
+    }
+
+    res = _call_flexible(
+        "multiai.pipeline.predict_bayes_lstm",
+        "run",
+        payload2,
+        extra_candidates=["predict", "apply", "run_predict_bayes"],
+    )
+    st.set_artifact("pred_path", out_path)
     return res
 
 def handle_register_merged(payload):
@@ -151,8 +260,15 @@ def next_steps():
     with_features = s.get("with_features")
     train_path = s.get("train_path")
     test_path = s.get("test_path")
+    model_dir = s.get("model_dir")
     model_path = s.get("model_path")
     pred_path = s.get("pred_path")
+
+    if not model_dir and model_path:
+        model_dir = os.path.dirname(model_path)
+
+    outputs_dir = "outputs"
+    os.makedirs(outputs_dir, exist_ok=True)
 
     steps = []
     if _exists(s.get("on_chain_q1s")) and _exists(s.get("off_chain_q1s")):
@@ -175,36 +291,63 @@ def next_steps():
     if not _exists(merged):
         return steps
     if not _exists(with_targets):
+        targets_out = os.path.join(outputs_dir, "merged_with_targets.parquet")
+        os.makedirs(os.path.dirname(targets_out) or ".", exist_ok=True)
         steps.append(("pipeline.build_targets", {
             "in_path": merged,
-            "out_path": os.path.join("outputs", "merged_with_targets.parquet")
+            "out_path": targets_out
         }))
         return steps
     if not _exists(with_features):
+        features_out = os.path.join(outputs_dir, "merged_with_features.parquet")
+        os.makedirs(os.path.dirname(features_out) or ".", exist_ok=True)
         steps.append(("pipeline.build_features", {
-            "in_path": with_targets or os.path.join("outputs", "merged_with_targets.parquet"),
-            "out_path": os.path.join("outputs", "merged_with_features.parquet")
+            "in_path": with_targets or os.path.join(outputs_dir, "merged_with_targets.parquet"),
+            "out_path": features_out
         }))
         return steps
     if not (_exists(train_path) and _exists(test_path)):
+        train_out = os.path.join(outputs_dir, "train.parquet")
+        test_out = os.path.join(outputs_dir, "test.parquet")
+        os.makedirs(os.path.dirname(train_out) or ".", exist_ok=True)
+        os.makedirs(os.path.dirname(test_out) or ".", exist_ok=True)
         steps.append(("pipeline.split_train_test", {
-            "in_path": with_features or os.path.join("outputs", "merged_with_features.parquet"),
-            "out_train": os.path.join("outputs", "train.parquet"),
-            "out_test": os.path.join("outputs", "test.parquet"),
+            "in_path": with_features or os.path.join(outputs_dir, "merged_with_features.parquet"),
+            "out_train": train_out,
+            "out_test": test_out,
             "ratio": 0.8
         }))
         return steps
-    if not _exists(model_path):
+    target_ready = _exists(with_targets)
+    model_ready = model_dir and os.path.isdir(model_dir) and os.path.exists(os.path.join(model_dir, "model.pt"))
+    if not model_ready:
+        if not (target_ready and _exists(train_path)):
+            return steps
+        default_model_out = os.path.join("outputs", "bayesian_lstm_model", "model.pt")
+        os.makedirs(os.path.dirname(default_model_out), exist_ok=True)
         steps.append(("train.bayes_lstm", {
-            "data_path": train_path,
-            "model_out": os.path.join("outputs", "bayesian_lstm_model.pt")
+            "model_out": default_model_out,
+            "seq_len": 60,
+            "epochs": 3,
+            "batch_size": 128,
+            "lr": 1e-3,
+            "device": "cpu",
         }))
         return steps
     if not _exists(pred_path):
+        default_pred = os.path.join("outputs", "predictions.parquet")
+        os.makedirs(os.path.dirname(default_pred) or ".", exist_ok=True)
         steps.append(("predict.bayes_lstm", {
-            "data_path": test_path,
-            "model_path": model_path or os.path.join("outputs", "bayesian_lstm_model.pt"),
-            "pred_out": os.path.join("outputs", "predictions.parquet")
+            "pred_out": default_pred,
+            "seq_len": 60,
+            "mc_samples": 32,
+            "device": "cpu",
+            "cost_bps_per_leg": 20.0,
+            "sl": 0.002,
+            "tp": 0.004,
+            "kelly_cap": 0.2,
+            "sigma_scale": 1.0,
+            "combine": False,
         }))
         return steps
     return steps
