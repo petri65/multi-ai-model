@@ -53,3 +53,7 @@ outputs/
 *.parquet
 outputs/
 *.parquet
+logs/
+*.log
+outputs/
+*.parquet
