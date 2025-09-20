@@ -1,0 +1,51 @@
+name: Calibration and Backtest Gates
+on:
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'policies/**'
+      - 'src/**'
+      - 'tools/**'
+      - '.github/workflows/**'
+      - 'tests/**'
+  workflow_dispatch: {}
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pandas pyarrow pytest pyyaml numpy
+      - name: Run unit tests
+        run: pytest -q
+      - name: Emit attestation
+        run: python tools/provenance_emit.py
+      - name: Verify attestation
+        run: python tools/attestation_verify.py
+      - name: Prepare tiny fixtures (synthetic)
+        run: |
+          python - << 'PY'
+          import pandas as pd
+          import numpy as np
+          import os, datetime as dt
+          ts = pd.date_range("2025-01-01", periods=1000, freq="1s")
+          feats = pd.DataFrame({"timestamp": ts, "mid_price": 100 + np.random.randn(len(ts)).cumsum()/1000})
+          feats["ret_1s"] = feats["mid_price"].pct_change().fillna(0.0)
+          feats.to_parquet("fixtures_features.parquet", index=False)
+          preds = feats[["timestamp"]].copy()
+          preds["pred_mu_h60"] = 0.0
+          preds["pred_sigma_h60"] = 0.01
+          preds["kelly_weight_h60"] = 0.0
+          preds.to_parquet("fixtures_preds.parquet", index=False)
+          PY
+      - name: Calibration gates
+        run: python tools/calibration_gates.py fixtures_features.parquet fixtures_preds.parquet
+      - name: Backtest gates
+        run: python tools/backtest_gates.py fixtures_features.parquet fixtures_preds.parquet

@@ -1,3 +1,3 @@
-def run_llama_guard():
-    # TODO: integrate with Llama/ollama
-    return True
+from __future__ import annotations
+import runpy
+if __name__ == "__main__": runpy.run_module("tools.llama_guard", run_name="__main__")

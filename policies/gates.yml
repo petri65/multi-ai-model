@@ -1,0 +1,9 @@
+thresholds:
+  coverage_min: 0.98   # 98% non-null across required columns
+  pf_min: 1.02         # min profit factor on toy backtest
+  mdd_max: 0.20        # max drawdown (20%)
+  rows_min: 500        # minimal sample size for gate to apply
+required_pred_columns:
+  - pred_mu_h60
+  - pred_sigma_h60
+  - kelly_weight_h60
