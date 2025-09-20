@@ -1,0 +1,7 @@
+{
+  "merged": "/Users/petri/Desktop/Final_Parquet_File/merged_on_off_1s_17092025.parquet",
+  "with_targets": "outputs/merged_with_targets.parquet",
+  "with_features": "outputs/merged_with_features.parquet",
+  "train_path": "outputs/train.parquet",
+  "test_path": "outputs/test.parquet"
+}

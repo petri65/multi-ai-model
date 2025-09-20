@@ -1,0 +1,53 @@
+
+DISPATCH.update({
+    "data.register_merged": handle_register_merged,
+    "pipeline.split_train_test": handle_split_train_test,
+})
+
+def next_steps():
+    s = st.load()
+    merged = s.get("merged")
+    with_targets = s.get("with_targets")
+    with_features = s.get("with_features")
+    train_path = s.get("train_path")
+    test_path = s.get("test_path")
+    model_path = s.get("model_path")
+    pred_path = s.get("pred_path")
+
+    steps = []
+    if not _exists(merged):
+        return steps
+    if not _exists(with_targets):
+        steps.append(("pipeline.build_targets", {
+            "in_path": merged,
+            "out_path": os.path.join("outputs", "merged_with_targets.parquet")
+        }))
+        return steps
+    if not _exists(with_features):
+        steps.append(("pipeline.build_features", {
+            "in_path": with_targets or os.path.join("outputs", "merged_with_targets.parquet"),
+            "out_path": os.path.join("outputs", "merged_with_features.parquet")
+        }))
+        return steps
+    if not (_exists(train_path) and _exists(test_path)):
+        steps.append(("pipeline.split_train_test", {
+            "in_path": with_features or os.path.join("outputs", "merged_with_features.parquet"),
+            "out_train": os.path.join("outputs", "train.parquet"),
+            "out_test": os.path.join("outputs", "test.parquet"),
+            "ratio": 0.8
+        }))
+        return steps
+    if not _exists(model_path):
+        steps.append(("train.bayes_lstm", {
+            "data_path": train_path,
+            "model_out": os.path.join("outputs", "bayesian_lstm_model.pt")
+        }))
+        return steps
+    if not _exists(pred_path):
+        steps.append(("predict.bayes_lstm", {
+            "data_path": test_path,
+            "model_path": model_path or os.path.join("outputs", "bayesian_lstm_model.pt"),
+            "pred_out": os.path.join("outputs", "predictions.parquet")
+        }))
+        return steps
+    return steps

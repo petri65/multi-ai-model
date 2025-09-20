@@ -1,0 +1,27 @@
+
+import sys, json, traceback, os
+from importlib import import_module
+from .queue import dequeue, length, enqueue
+from . import state as st
+
+def _call(module_path, func_name="run", kwargs=None):
+    mod = import_module(module_path)
+    fn = getattr(mod, func_name, None)
+    if fn is None:
+        raise RuntimeError(f"entrypoint {module_path}.{func_name} not found")
+    return fn(**(kwargs or {}))
+
+def _exists(p):
+    return p and os.path.exists(p)
+
+def handle_register_merged(payload):
+    merged = payload.get("path")
+    if not _exists(merged):
+        raise FileNotFoundError(f"merged parquet not found: {merged}")
+    st.set_artifact("merged", merged)
+    return {"registered": merged}
+
+def handle_split_train_test(payload):
+    return _call("multiai.pipeline.split_train_test", "run", payload)
+
+# Existing handlers assumed present; we redefine DISPATCH to add new types

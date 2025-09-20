@@ -1,0 +1,43 @@
+Project path: /Users/petri/Desktop/multi-ai-model
+Default working branch: codex/autonomy-e2e
+
+Objective
+Make the autonomy pipeline run end-to-end on my merged 1s Litecoin dataset: targets → features (price_col=mid_price) → chronological split → train → predict. Leave a nightly paper-trading task and a short README quickstart.
+
+Context for Codex
+- Repo root: /Users/petri/Desktop/multi-ai-model
+- Orchestrator CLI: python -m multiai.orchestrator.cli run
+- Queue path: logs/task_queue.jsonl
+- Merged dataset: /Users/petri/Desktop/Final_Parquet_File/merged_on_off_1s_17092025.parquet
+- Project Plan: docs/ProjectPlan.docx  (and docs/ProjectPlan.md if present). Always consult this plan before changing behavior, and keep the code aligned with it. If something is ambiguous, add a small ADR in docs/ and continue with a conservative default.
+
+What to change
+1) Dispatcher must call:
+   - multiai.pipeline.build_targets.run_build_targets(merged_path, out_path, price_col default trade_price)
+   - multiai.pipeline.build_features.run_build_features(merged_path, out_path, price_col)
+   - train and predict modules: discover callable names and adapt kwargs without changing pipeline modules.
+2) Default price column should be mid_price if present in the merged dataset, otherwise weighted_mid_price, otherwise trade_price.
+3) pipeline.split_train_test: chronological split, default ratio 0.8, override with split_timestamp.
+4) Artifacts:
+   - outputs/merged_with_targets.parquet
+   - outputs/merged_with_features.parquet
+   - outputs/train.parquet
+   - outputs/test.parquet
+   - outputs/bayesian_lstm_model.pt
+   - outputs/predictions.parquet
+5) scripts/orchestrator_loop.sh must append to logs/orchestrator.log and never read stdin.
+6) Add docs/Autonomy_Quickstart.md with exact run steps.
+7) Do not weaken safety gates or protocol checks.
+
+Commands Codex is allowed to run
+- python -m multiai.orchestrator.cli run
+- python - <<'PY' … PY
+- pytest -q
+- git checkout -b codex/autonomy-e2e
+- git add -A && git commit -m "..."
+- git push -u origin codex/autonomy-e2e  (only if GitHub remote is set)
+
+Acceptance checks
+- Enqueue data.register_merged leads to build_targets → build_features → split_train_test → train → predict with no manual edits to pipeline modules.
+- The six artifacts above exist and have nonzero rows where applicable.
+- README or docs/Autonomy_Quickstart.md includes a concise “how to run” using your merged dataset path.
