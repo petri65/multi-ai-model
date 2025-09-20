@@ -1,6 +1,15 @@
 import argparse
 import sys
 
+try:
+    import pandas  # noqa: F401  # Used to detect availability of optional data tooling
+except ImportError:  # pragma: no cover - environment without pandas should disable data ops
+    dm_available = False
+    bf_available = False
+else:
+    dm_available = True
+    bf_available = True
+
 def cli():
     p = argparse.ArgumentParser(prog="multiai", description="Multi-AI Model Orchestrator")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -37,6 +46,18 @@ def cli():
     prb.add_argument("--sigma-scale", type=float, default=1.0)
     prb.add_argument("--combine", action="store_true")
     prb.add_argument("--verbose", action="store_true")
+
+    dm = sub.add_parser("daily-merge")
+    dm.add_argument("--off-dir", required=True)
+    dm.add_argument("--on-dir", required=True)
+    dm.add_argument("--out", required=True)
+    dm.add_argument("--verbose", action="store_true")
+
+    bf = sub.add_parser("build-features")
+    bf.add_argument("--merged", required=True)
+    bf.add_argument("--out", required=True)
+    bf.add_argument("--price-col", default="trade_price")
+    bf.add_argument("--verbose", action="store_true")
     a = p.parse_args()
 
     if a.cmd == "build-targets":
