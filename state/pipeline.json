@@ -3,5 +3,24 @@
   "with_targets": "outputs/merged_with_targets.parquet",
   "with_features": "outputs/merged_with_features.parquet",
   "train_path": "outputs/train.parquet",
-  "test_path": "outputs/test.parquet"
+  "test_path": "outputs/test.parquet",
+  "whale_metrics_schema": [
+    "timestamp",
+    "whale_tx_count_10m",
+    "whale_total_value_ltc_10m",
+    "whale_avg_value_ltc_10m",
+    "whale_max_value_ltc_10m",
+    "whale_topN_sum_ltc_10m",
+    "threshold_ltc_effective"
+  ],
+  "whale_events_schema": [
+    "timestamp",
+    "timestamp_ms",
+    "txid",
+    "value_ltc_total",
+    "inputs_count",
+    "outputs_count",
+    "block_height",
+    "first_seen_ms"
+  ]
 }
