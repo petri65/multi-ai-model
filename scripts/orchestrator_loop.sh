@@ -12,5 +12,5 @@ while true; do
     git commit -m "orchestrator: local change [auto]" || true
     make guarded-merge || true
   fi
-  sleep 300
+  sleep 30
 done
