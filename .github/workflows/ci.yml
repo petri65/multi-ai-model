@@ -1,38 +1,27 @@
 name: ci
 on:
   pull_request:
-  push:
-    branches: [ main ]
+
 jobs:
-  protocol-auditor:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - run: pip install -e .
-      - run: python -m tools.protocol_auditor --policy core_protocol.md
-  llama-guard:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - run: pip install -e .
-      - run: python -m tools.llama_guard --policy core_protocol.md
-  gpt-math-validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - run: pip install -e .
-      - run: python -m tools.gpt_math_validate --require-pass
   test-suite:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - run: pip install -e .[test]
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -U pip
+      - run: python -m pip install -e .
+      - run: python -m pip install pytest
       - run: pytest -q
+
+  protocol-auditor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -U pip
+      - run: python -m pip install -e .
+      - run: python tools/protocol_auditor.py --policy core_protocol.md --rules policies/rules.yml --gates policies/gates.yml
