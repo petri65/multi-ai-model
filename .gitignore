@@ -51,3 +51,5 @@ config/api_keys.json
 *.parquet
 outputs/
 *.parquet
+outputs/
+*.parquet
