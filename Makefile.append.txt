@@ -1,0 +1,6 @@
+
+autonomy-seed:
+	. .venv/bin/activate && \
+	export PYTHONPATH="$(PWD)/src" && \
+	export MULTIAI_QUEUE_PATH="$(PWD)/logs/task_queue.jsonl" && \
+	python -m tools.enqueue_pipeline
