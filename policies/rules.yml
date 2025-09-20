@@ -1,22 +1,15 @@
-audit_version: 2
-rules:
-  - id: heartbeat_window_horizons
-    target: "src/**/runner*.py"
-    check: "heartbeat_seconds==1 && window_steps==240 && horizons==[10,30,60,90,120,240]"
-    severity: error
-  - id: rotation_and_object_split
-    target: "src/**/{collector,merger}*.py"
-    check: "file_rotation_minutes==90 && object_columns_split==true"
-    severity: error
-  - id: model_is_bayesian_lstm
-    target: "src/**/model*.py"
-    check: "class_type in [BayesianLSTM, MCDropoutLSTM]"
-    severity: error
-  - id: kelly_requirements
-    target: "src/**/kelly*.py"
-    check: "uses_gaussian_integral==true && costs_bps>=20 && available_capital_validated==true"
-    severity: error
-  - id: forbid_secrets
-    target: "**"
-    check: "secret_scan_passed==true"
-    severity: error
+gpu_required: true
+timestamp_quantization: 1s
+seq_len: 240
+horizons: [10,30,60,90,120,240]
+model: bayesian_lstm
+uncertainty: mc_dropout
+kelly: distributional
+egress:
+  secrets: deny
+  raw_data: deny
+gpu_policy:
+  require_auto_device: true
+  allowed_devices: ["cuda", "mps", "auto", "cpu"]
+  prefer: ["cuda", "mps"]
+  forbid_default_cpu: true

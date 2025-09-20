@@ -47,4 +47,9 @@ config/api_keys.json
 
 # Temporary files
 *.tmp
-*.temp
+*.tempoutputs/
+*.parquet
+outputs/
+*.parquet
+outputs/
+*.parquet

@@ -1,0 +1,7 @@
+task: hello-autonomy
+target: docs/hello_autonomy.md
+change: "Append one line proving orchestrator autonomy."
+validators:
+  - protocol-auditor
+  - llama-guard
+  - gpt-math-validate
