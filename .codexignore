@@ -1,0 +1,10 @@
+.venv/
+logs/
+state/
+outputs/
+data/
+**/*.parquet
+**/*.pt
+**/*.zip
+**/*.xlsx
+**/*.ipynb
