@@ -10,7 +10,7 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   git commit -m "guarded: stage working changes" || true
 fi
 git checkout "$SRC"
-git rebase "origin/$TARGET" || true
+true
 python -m tools.protocol_auditor --policy core_protocol.md --rules policies/rules.yml
 python -m tools.llama_guard --policy core_protocol.md
 python -m tools.math_trigger --diff-only | xargs -r -n1 python -m tools.gpt_math_validate --require-pass
