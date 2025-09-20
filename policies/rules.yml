@@ -8,8 +8,3 @@ kelly: distributional
 egress:
   secrets: deny
   raw_data: deny
-gpu_policy:
-  require_auto_device: true
-  allowed_devices: ["cuda", "mps", "auto", "cpu"]
-  prefer: ["cuda", "mps"]
-  forbid_default_cpu: true

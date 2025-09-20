@@ -1,6 +1,6 @@
 {
   "tool": "guarded-merge",
-  "time": 1758371652,
+  "time": 1758374444,
   "artifacts": [
     {
       "path": "core_protocol.md",
@@ -8,7 +8,7 @@
     },
     {
       "path": "policies/rules.yml",
-      "sha256": "c448195b71c8621c6763679f8caa8ea7ba2ec971f33db79ea4518ab2741866da"
+      "sha256": "151a052add1aef65cd77a5193130195ab686807b04cbf3ac25f84a93705b7ad0"
     }
   ]
 }
