@@ -1,9 +1,13 @@
-import click, pandas as pd
-from pathlib import Path
+import click
 from rich import print
-from multiai.dataops.quantize import quantize_to_1s as quantize_file
+from pathlib import Path
+from multiai.collectors.offchain.binance_l2_l10 import run_binance_l2
+from multiai.collectors.onchain.ltc_mempool import run_litecoin_mempool
+from multiai.pipeline.daily_merge import build_daily
+from multiai.dataops.quantize import quantize_to_1s
 from multiai.dataops.split_object_columns import split_object_columns_if_present
 from multiai.dataops.merge_on_off import merge_on_off
+import asyncio
 
 @click.group()
 def main():
@@ -13,20 +17,48 @@ def main():
 def run():
     pass
 
+@run.command("collect-offchain")
+@click.option("--symbol", default="LTCUSDT")
+@click.option("--outdir", required=True)
+@click.option("--rotate-minutes", type=int, default=90)
+def collect_offchain(symbol, outdir, rotate_minutes):
+    print(f"[bold]Collecting Binance {symbol} at 200ms → {outdir}[/]")
+    asyncio.run(run_binance_l2(symbol, outdir, rotate_minutes))
+
+@run.command("collect-onchain")
+@click.option("--rpc-url", default="http://127.0.0.1:9332")
+@click.option("--rpc-user", required=True)
+@click.option("--rpc-pass", required=True)
+@click.option("--outdir", required=True)
+@click.option("--rotate-minutes", type=int, default=90)
+def collect_onchain(rpc_url, rpc_user, rpc_pass, outdir, rotate_minutes):
+    print(f"[bold]Collecting Litecoin mempool at 200ms → {outdir}[/]")
+    run_litecoin_mempool(rpc_url, rpc_user, rpc_pass, outdir, rotate_minutes)
+
+@run.command("daily-merge")
+@click.option("--off-dir", required=True)
+@click.option("--on-dir", required=True)
+@click.option("--out", required=True)
+def daily_merge(off_dir, on_dir, out):
+    print("[bold]Quantize → split → strict merge[/]")
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    build_daily(off_dir, on_dir, out)
+
 @run.command("dataops")
-@click.option("--on", "on_path", required=True, type=click.Path(exists=True))
-@click.option("--off", "off_path", required=True, type=click.Path(exists=True))
-@click.option("--out", "out_path", required=True, type=click.Path())
+@click.option("--on", "on_path", required=True)
+@click.option("--off", "off_path", required=True)
+@click.option("--out", "out_path", required=True)
 def dataops(on_path, off_path, out_path):
+    import pandas as pd
     print("[bold]Step 1/4:[/] Quantize to 1s (forward snap + dedupe)")
-    q_on = quantize_file(on_path)
-    q_off = quantize_file(off_path)
+    q_on = quantize_to_1s(pd.read_parquet(on_path))
+    q_off = quantize_to_1s(pd.read_parquet(off_path))
     print("[bold]Step 2/4:[/] Split list/object columns (if present)")
     s_on = split_object_columns_if_present(q_on)
     s_off = split_object_columns_if_present(q_off)
     print("[bold]Step 3/4:[/] Merge on/off into single file with strict schema")
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     merge_on_off(s_on, s_off, out_path)
-    print("[bold]Step 4/4:[/] Local guards (placeholders)")
-    print("Llama-Guard OK; Protocol-Auditor OK; GPT-Math-Validate OK")
     print(f"[green]OK[/] Merged file written to: {out_path}")
+
+if __name__ == "__main__":
+    main()

@@ -1,20 +1,18 @@
 import pandas as pd
 from multiai.dataops.quantize import quantize_to_1s
 
-def test_quantize_forward_snap_and_latest_kept(tmp_path):
+def test_forward_round_and_latest_kept():
     df = pd.DataFrame({
-        'timestamp': pd.to_datetime([
-            '2025-01-01T00:00:00.100Z',
-            '2025-01-01T00:00:00.900Z',  # same second, later -> should win
-            '2025-01-01T00:00:01.050Z',
-        ], utc=True),
-        'v': [1, 2, 3]
+        "timestamp": [
+            "2025-01-01T00:00:00.100Z",
+            "2025-01-01T00:00:00.900Z",
+            "2025-01-01T00:00:01.001Z",
+        ],
+        "val":[1,2,3]
     })
-    p = tmp_path / 'in.parquet'
-    df.to_parquet(p, index=False)
-    out = quantize_to_1s(p)
-    assert list(out['timestamp'].dt.floor('s')) == [
-        pd.Timestamp('2025-01-01T00:00:01Z'),
-        pd.Timestamp('2025-01-01T00:00:02Z'),
-    ]
-    assert out['v'].tolist() == [2,3]
+    out = quantize_to_1s(df, ts_col="timestamp")
+    # 00.100 -> 01, 00.900 -> 01 (latest is 00.900 row), 01.001 -> 02
+    assert len(out)==2
+    assert out.iloc[0]["timestamp"].strftime("%H:%M:%S")=="00:00:01"
+    assert out.iloc[0]["val"]==2
+    assert out.iloc[1]["timestamp"].strftime("%H:%M:%S")=="00:00:02"
