@@ -70,15 +70,40 @@ def handle_merge_on_off(payload):
     st.set_artifact("merged", out_path)
     return res
 
+
 def handle_build_targets(payload):
     out_path = payload.get("out_path")
-    res = _call_flexible("multiai.pipeline.build_targets", "run", payload, extra_candidates=["build_targets","build","apply"])
+    # remap in_path -> merged_path for the module signature
+    payload2 = {"merged_path": payload.get("in_path"), "out_path": out_path}
+    res = _call_flexible("multiai.pipeline.build_targets", "run", payload2, extra_candidates=["run_build_targets","build_targets","build","apply"])
     st.set_artifact("with_targets", out_path)
     return res
 
+
 def handle_build_features(payload):
     out_path = payload.get("out_path")
-    res = _call_flexible("multiai.pipeline.build_features", "run", payload, extra_candidates=["build_features","build","apply"])
+    merged_path = st.load().get("merged")
+    price_col = payload.get("price_col")
+    if not price_col:
+        df_cols = []
+        try:
+            import pandas as _pd
+            df_cols = [c.lower() for c in _pd.read_parquet(merged_path, columns=None).columns]
+        except Exception:
+            df_cols = []
+        preferred = ["mid_price","weighted_mid_price","trade_price","price","close","last_price"]
+        for c in preferred:
+            if c.lower() in df_cols:
+                price_col = c
+                break
+        if not price_col:
+            price_col = "trade_price"
+    payload2 = {
+        "merged_path": merged_path,
+        "out_path": out_path,
+        "price_col": price_col
+    }
+    res = _call_flexible("multiai.pipeline.build_features", "run", payload2, extra_candidates=["run_build_features","build_features","build","apply"])
     st.set_artifact("with_features", out_path)
     return res
 
