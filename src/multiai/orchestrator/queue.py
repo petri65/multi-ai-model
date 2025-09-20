@@ -3,7 +3,8 @@ Q = pathlib.Path("orchestrator_queue.json")
 _LOCK = threading.Lock()
 
 def _load():
-    if not Q.exists(): return []
+    if not Q.exists():
+        return []
     try:
         return json.loads(Q.read_text())
     except Exception:
@@ -23,7 +24,8 @@ def enqueue(task_type: str, payload: dict):
 def dequeue():
     with _LOCK:
         items = _load()
-        if not items: return None
+        if not items:
+            return None
         rec = items.pop(0)
         _save(items)
         return rec
