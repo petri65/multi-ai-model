@@ -1,4 +1,4 @@
-import argparse, sys
+import argparse
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--policy", required=True)
