@@ -1,0 +1,14 @@
+{
+  "tool": "guarded-merge",
+  "time": 1758374072,
+  "artifacts": [
+    {
+      "path": "core_protocol.md",
+      "sha256": "d77ccfd800041730ccad0418c5cfa310b086039c382f119e30044c928dc77d49"
+    },
+    {
+      "path": "policies/rules.yml",
+      "sha256": "151a052add1aef65cd77a5193130195ab686807b04cbf3ac25f84a93705b7ad0"
+    }
+  ]
+}
