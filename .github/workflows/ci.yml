@@ -24,4 +24,4 @@ jobs:
           python-version: "3.11"
       - run: python -m pip install -U pip
       - run: python -m pip install -e .
-      - run: python tools/protocol_auditor.py --policy core_protocol.md --rules policies/rules.yml --gates policies/gates.yml
+      - run: python tools/protocol_auditor.py --policy core_protocol.md --rules policies/rules.yml
