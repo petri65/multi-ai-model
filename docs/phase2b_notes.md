@@ -5,7 +5,7 @@
 - CLI gains:
   - `multiai run build-features --merged merged.parquet --out features.parquet`
   - `multiai run build-targets --merged merged.parquet --out targets.parquet`
-  - `multiai run train-bayes ...` (stub)
-  - `multiai run predict-bayes ...` (stub)
+  - `multiai run train-bayes ...` (Bayesian MC dropout LSTM training)
+  - `multiai run predict-bayes ...` (Bayesian MC dropout LSTM inference + Kelly sizing)
 
 This follows the Project Plan sections on post-processing, horizons, and trading logic.
