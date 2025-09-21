@@ -51,10 +51,35 @@ def main():
     run(["multiai","run","daily-merge","--off-dir",str(OFF_DIR),"--on-dir",str(ON_DIR),"--out",str(merged_path)])
     feat = OUT_DIR/"features.parquet"
     run(["multiai","run","build-features","--merged",str(merged_path),"--out",str(feat),"--price-col","mid_price"])
+    targets = OUT_DIR/"targets.parquet"
+    run(["multiai","run","build-targets","--merged",str(merged_path),"--out",str(targets),"--price-col","mid_price"])
     model_dir = OUT_DIR/"model"
-    run(["multiai","run","train","--features",str(feat),"--outdir",str(model_dir),"--epochs","3","--device","cpu"])
+    run([
+        "multiai","run","train-bayes",
+        "--features",str(feat),
+        "--targets",str(targets),
+        "--outdir",str(model_dir),
+        "--seq-len","240",
+        "--epochs","3",
+        "--batch-size","256",
+        "--lr","0.001",
+        "--device","cpu"
+    ])
     preds = OUT_DIR/"preds.parquet"
-    run(["multiai","run","predict","--features",str(feat),"--model-dir",str(model_dir),"--out",str(preds),"--head-h","60","--costs-bps","20"])
+    run([
+        "multiai","run","predict-bayes",
+        "--features",str(feat),
+        "--model-dir",str(model_dir),
+        "--out",str(preds),
+        "--seq-len","240",
+        "--mc-samples","30",
+        "--device","cpu",
+        "--cost-bps-per-leg","20",
+        "--sl","0.02",
+        "--tp","0.02",
+        "--kelly-cap","0.2",
+        "--sigma-scale","1.0"
+    ])
     branch = f"auto/update-{ts()}"
     run(["git","checkout","-b",branch])
     run(["git","add","."])
