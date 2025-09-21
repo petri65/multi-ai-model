@@ -1,8 +1,10 @@
 
 import sys, json, traceback, os, inspect
+from datetime import datetime, timezone
 from importlib import import_module
 from .queue import dequeue, length, enqueue
 from . import state as st
+from multiai.paper_trading import SessionConfig, run as run_paper_session
 
 def _import(module_path):
     return import_module(module_path)
@@ -240,6 +242,51 @@ def handle_register_merged(payload):
 def handle_split_train_test(payload):
     return _call_flexible("multiai.pipeline.split_train_test", "run", payload)
 
+def handle_paper_trading_run(payload):
+    state = st.load()
+    defaults = {
+        "predictions_path": state.get("pred_path"),
+        "market_path": state.get("with_features"),
+        "out_dir": os.path.join("outputs", "paper_trading"),
+        "duration_seconds": 3600,
+        "initial_capital": 100_000.0,
+        "exposure_cap": 0.2,
+        "hysteresis": 0.01,
+        "stop_loss": 0.02,
+        "take_profit": 0.04,
+        "cost_bps_per_leg": 20.0,
+        "price_col": "trade_price",
+    }
+    predictions_path = payload.get("predictions_path", defaults["predictions_path"])
+    market_path = payload.get("market_path", defaults["market_path"])
+    out_dir = payload.get("out_dir", defaults["out_dir"])
+    if not _exists(predictions_path):
+        raise FileNotFoundError(f"predictions parquet missing: {predictions_path}")
+    if market_path and not _exists(market_path):
+        raise FileNotFoundError(f"market parquet missing: {market_path}")
+
+    cfg = SessionConfig(
+        duration_seconds=int(payload.get("duration_seconds", defaults["duration_seconds"])),
+        initial_capital=float(payload.get("initial_capital", defaults["initial_capital"])),
+        exposure_cap=float(payload.get("exposure_cap", defaults["exposure_cap"])),
+        hysteresis=float(payload.get("hysteresis", defaults["hysteresis"])),
+        stop_loss=float(payload.get("stop_loss", defaults["stop_loss"])),
+        take_profit=float(payload.get("take_profit", defaults["take_profit"])),
+        cost_bps_per_leg=float(payload.get("cost_bps_per_leg", defaults["cost_bps_per_leg"])),
+    )
+    result = run_paper_session(
+        predictions_path=predictions_path,
+        market_path=market_path,
+        out_dir=out_dir,
+        price_col=payload.get("price_col", defaults["price_col"]),
+        config=cfg,
+    )
+    st.set_artifact("paper_trading_log", result.log_path)
+    st.set_artifact("paper_trading_equity", result.equity_path)
+    st.set_artifact("paper_trading_alerts", result.alerts_path)
+    st.set_artifact("paper_trading_last_run", datetime.now(timezone.utc).isoformat())
+    return result.asdict()
+
 DISPATCH = {
     "hello": handle_hello,
     "data.quantize_1s": handle_quantize,
@@ -251,6 +298,7 @@ DISPATCH = {
     "predict.bayes_lstm": handle_predict_bayes_lstm,
     "data.register_merged": handle_register_merged,
     "pipeline.split_train_test": handle_split_train_test,
+    "paper_trading.run": handle_paper_trading_run,
 }
 
 def next_steps():
@@ -348,6 +396,35 @@ def next_steps():
             "kelly_cap": 0.2,
             "sigma_scale": 1.0,
             "combine": False,
+        }))
+        return steps
+    last_paper = s.get("paper_trading_last_run")
+    run_today = False
+    if last_paper:
+        try:
+            last_dt = datetime.fromisoformat(last_paper)
+            now = datetime.now(timezone.utc)
+            run_today = last_dt.date() == now.date()
+        except Exception:
+            run_today = False
+    if not run_today:
+        market_source = with_features if _exists(with_features) else merged
+        if not _exists(market_source):
+            return steps
+        out_dir = os.path.join(outputs_dir, "paper_trading")
+        os.makedirs(out_dir, exist_ok=True)
+        steps.append(("paper_trading.run", {
+            "predictions_path": pred_path,
+            "market_path": market_source,
+            "out_dir": out_dir,
+            "duration_seconds": 3600,
+            "initial_capital": 100_000.0,
+            "exposure_cap": 0.2,
+            "hysteresis": 0.01,
+            "stop_loss": 0.02,
+            "take_profit": 0.04,
+            "cost_bps_per_leg": 20.0,
+            "price_col": "trade_price",
         }))
         return steps
     return steps

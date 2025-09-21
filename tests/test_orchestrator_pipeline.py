@@ -58,6 +58,9 @@ def test_orchestrator_pipeline_end_to_end(tmp_path, monkeypatch):
         "test_path",
         "model_dir",
         "pred_path",
+        "paper_trading_log",
+        "paper_trading_equity",
+        "paper_trading_alerts",
     ]
     for key in expected_keys:
         assert key in final_state, f"missing artifact {key}"

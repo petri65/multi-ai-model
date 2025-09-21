@@ -1,4 +1,5 @@
 import os, json
+from math import erf, sqrt
 import numpy as np
 import pandas as pd
 import torch
@@ -58,6 +59,8 @@ def run_predict_bayes(features_path: str, model_dir: str, out_path: str,
             mu = mu_hat[:, j]
             sig = sigma_hat[:, j]
             f_star = np.zeros(B); G_star = np.zeros(B); f_gauss = np.zeros(B)
+            prob_up = np.zeros(B)
+            prob_down = np.zeros(B)
             for i in range(B):
                 f, G, fg = kelly_optimal_fraction_gaussian(
                     float(mu[i]), float(sig[i]), cost_bps_per_leg, sl, tp, f_cap=1.0
@@ -65,18 +68,32 @@ def run_predict_bayes(features_path: str, model_dir: str, out_path: str,
                 f_star[i] = np.clip(f, -abs(kelly_cap), abs(kelly_cap))
                 G_star[i] = G
                 f_gauss[i] = fg
+                if sig[i] <= 1e-12:
+                    prob_down[i] = 0.5
+                    prob_up[i] = 0.5
+                else:
+                    z = (0.0 - float(mu[i])) / (float(sig[i]) * sqrt(2.0))
+                    cdf0 = 0.5 * (1.0 + erf(z))
+                    cdf0 = min(max(cdf0, 0.0), 1.0)
+                    prob_down[i] = cdf0
+                    prob_up[i] = 1.0 - cdf0
             base[f"pred_mu_h{h}"] = mu
             base[f"pred_sigma_h{h}"] = sig
             base[f"kelly_weight_h{h}"] = f_star
             base[f"kelly_G_h{h}"] = G_star
             base[f"kelly_fgauss_h{h}"] = f_gauss
+            base[f"prob_up_h{h}"] = prob_up
+            base[f"prob_down_h{h}"] = prob_down
+            base[f"kelly_integral_h{h}"] = G_star
 
-        if combine:
-            fcols=[c for c in base.columns if c.startswith('kelly_weight_h')]
-            scols=[c for c in base.columns if c.startswith('pred_sigma_h')]
-            F = base[fcols].to_numpy(); S = base[[c.replace('kelly_weight','pred_sigma') for c in fcols]].to_numpy()
-            comb=[combine_allocations(F[i], S[i], cap=kelly_cap) for i in range(len(base))]
-            base['kelly_alloc']=comb
+        fcols = [c for c in base.columns if c.startswith('kelly_weight_h')]
+        if fcols:
+            F = base[fcols].to_numpy()
+            S = base[[c.replace('kelly_weight', 'pred_sigma') for c in fcols]].to_numpy()
+            comb = [combine_allocations(F[i], S[i], cap=kelly_cap) for i in range(len(base))]
+            base['kelly_weighted'] = comb
+            if combine:
+                base['kelly_alloc'] = comb
         rows.append(base)
         if verbose:
             print(f"[predict-bayes] chunk {start}-{end} rows={B} device={device}")
