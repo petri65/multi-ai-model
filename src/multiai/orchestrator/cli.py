@@ -68,7 +68,45 @@ def handle_split_lists(payload):
 
 def handle_merge_on_off(payload):
     out_path = payload.get("out_path")
-    res = _call_flexible("multiai.dataops.merge_on_offchain", "run", payload, extra_candidates=["merge","apply"])
+    quant_off = (
+        payload.get("quant_off")
+        or payload.get("left")
+        or payload.get("off")
+        or payload.get("off_path")
+    )
+    quant_on = (
+        payload.get("quant_on")
+        or payload.get("right")
+        or payload.get("on")
+        or payload.get("on_path")
+    )
+    if not quant_off or not quant_on:
+        raise ValueError("merge requires both off-chain and on-chain quantized inputs")
+
+    call_kwargs = {
+        "quant_off": quant_off,
+        "quant_on": quant_on,
+        "out_path": out_path,
+    }
+
+    quant_whales = (
+        payload.get("quant_whales")
+        or payload.get("whales")
+        or payload.get("whales_path")
+    )
+    if quant_whales:
+        call_kwargs["quant_whales"] = quant_whales
+
+    ts_col = payload.get("ts_col") or payload.get("timestamp_col")
+    if ts_col:
+        call_kwargs["ts_col"] = ts_col
+
+    res = _call_flexible(
+        "multiai.dataops.merge_on_off",
+        "merge_on_off",
+        call_kwargs,
+        extra_candidates=["run", "merge", "apply"],
+    )
     st.set_artifact("merged", out_path)
     return res
 
@@ -319,6 +357,10 @@ def next_steps():
     os.makedirs(outputs_dir, exist_ok=True)
 
     steps = []
+    whale_metrics = s.get("whale_metrics_q1s_split") or s.get("whale_metrics_q1s")
+    if whale_metrics and not _exists(whale_metrics):
+        whale_metrics = None
+
     if _exists(s.get("on_chain_q1s")) and _exists(s.get("off_chain_q1s")):
         if not _exists(s.get("off_chain_q1s_split")):
             steps.append(("data.split_lists", {
@@ -329,11 +371,14 @@ def next_steps():
             }))
             return steps
         if not _exists(merged):
-            steps.append(("data.merge_on_offchain", {
+            payload = {
                 "left": s.get("off_chain_q1s_split"),
                 "right": s.get("on_chain_q1s"),
                 "out_path": os.path.join("outputs", "merged.parquet")
-            }))
+            }
+            if whale_metrics:
+                payload["whales"] = whale_metrics
+            steps.append(("data.merge_on_offchain", payload))
             return steps
 
     if not _exists(merged):

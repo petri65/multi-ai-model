@@ -86,3 +86,8 @@ def merge_on_off(
         merged.to_parquet(str(out_path), index=False)
 
     return merged
+
+
+def run(**kwargs) -> pd.DataFrame:
+    """Convenience entrypoint mirroring the orchestrator's expectations."""
+    return merge_on_off(**kwargs)
