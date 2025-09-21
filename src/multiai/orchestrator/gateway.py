@@ -120,7 +120,12 @@ class Orchestrator:
             prompt=self._sanitized_prompt,
         )
         branch_name = cp.branch or f"ai/{cp.job_id}"
-        github_app.push_branch(branch_name, attestation_path=attestation_path, title=cp.title)
+        github_app.push_branch(
+            branch_name,
+            attestation_path=attestation_path,
+            title=cp.title,
+            body=cp.description,
+        )
         self._release_leases()
         self._reset()
         return attestation_path
